@@ -289,18 +289,18 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 "goog:loggingPrefs", {"performance": "ALL", "browser": "ALL"}
             )
 
-        options.add_argument("--remote-debugging-host=%s" % debug_host)
-        options.add_argument("--remote-debugging-port=%s" % debug_port)
+        options.add_argument(f"--remote-debugging-host={debug_host}")
+        options.add_argument(f"--remote-debugging-port={debug_port}")
 
         if user_data_dir:
-            options.add_argument("--user-data-dir=%s" % user_data_dir)
+            options.add_argument(f"--user-data-dir={user_data_dir}")
 
         language, keep_user_data_dir = None, bool(user_data_dir)
 
         # see if a custom user profile is specified in options
         for arg in options.arguments:
 
-            if any([_ in arg for _ in ("--headless", "headless")]):
+            if any(_ in arg for _ in ("--headless", "headless")):
                 options.arguments.remove(arg)
                 options.headless = True
 
@@ -316,15 +316,12 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 m = re.search("(?:--)?user-data-dir(?:[ =])?(.*)", arg)
                 try:
                     user_data_dir = m[1]
-                    logger.debug(
-                        "user-data-dir found in user argument %s => %s" % (arg, m[1])
-                    )
+                    logger.debug(f"user-data-dir found in user argument {arg} => {m[1]}")
                     keep_user_data_dir = True
 
                 except IndexError:
                     logger.debug(
-                        "no user data dir could be extracted from supplied argument %s "
-                        % arg
+                        f"no user data dir could be extracted from supplied argument {arg} "
                     )
 
         if not user_data_dir:
@@ -340,16 +337,16 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                     "using ChromeOptions.user_data_dir might stop working in future versions."
                     "use uc.Chrome(user_data_dir='/xyz/some/data') in case you need existing profile folder"
                 )
-                options.add_argument("--user-data-dir=%s" % options.user_data_dir)
+                options.add_argument(f"--user-data-dir={options.user_data_dir}")
                 keep_user_data_dir = True
                 logger.debug(
-                    "user_data_dir property found in options object: %s" % user_data_dir
+                    f"user_data_dir property found in options object: {user_data_dir}"
                 )
 
             else:
                 user_data_dir = os.path.normpath(tempfile.mkdtemp())
                 keep_user_data_dir = False
-                arg = "--user-data-dir=%s" % user_data_dir
+                arg = f"--user-data-dir={user_data_dir}"
                 options.add_argument(arg)
                 logger.debug(
                     "created a temporary folder in which the user-data (profile) will be stored during this\n"
@@ -363,10 +360,10 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 language = locale.getdefaultlocale()[0].replace("_", "-")
             except Exception:
                 pass
-            if not language:
-                language = "en-US"
+        if not language:
+            language = "en-US"
 
-        options.add_argument("--lang=%s" % language)
+        options.add_argument(f"--lang={language}")
 
         if not options.binary_location:
             options.binary_location = (
@@ -374,16 +371,10 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
             )
 
         if not options.binary_location or not \
-                pathlib.Path(options.binary_location).exists():
-                raise FileNotFoundError(
-                    "\n---------------------\n"
-                    "Could not determine browser executable."
-                    "\n---------------------\n"
-                    "Make sure your browser is installed in the default location (path).\n"
-                    "If you are sure about the browser executable, you can specify it using\n"
-                    "the `browser_executable_path='{}` parameter.\n\n"
-                    .format("/path/to/browser/executable" if IS_POSIX else "c:/path/to/your/browser.exe")
-                )
+                    pathlib.Path(options.binary_location).exists():
+            raise FileNotFoundError(
+                f"""\n---------------------\nCould not determine browser executable.\n---------------------\nMake sure your browser is installed in the default location (path).\nIf you are sure about the browser executable, you can specify it using\nthe `browser_executable_path='{"/path/to/browser/executable" if IS_POSIX else "c:/path/to/your/browser.exe"}` parameter.\n\n"""
+            )
 
         self._delay = 3
 
@@ -400,7 +391,7 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
             try:
                 if self.patcher.version_main < 108:
                     options.add_argument("--headless=chrome")
-                elif self.patcher.version_main >= 108:
+                else:
                     options.add_argument("--headless=new")
             except:
                 logger.warning("could not detect version_main."
@@ -480,11 +471,7 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
             reactor.start()
             self.reactor = reactor
 
-        if advanced_elements:
-            self._web_element_cls = UCWebElement
-        else:
-            self._web_element_cls = WebElement
-
+        self._web_element_cls = UCWebElement if advanced_elements else WebElement
         if options.headless:
             self._configure_headless()
 
@@ -745,21 +732,18 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                 self.switch_to.default_content()
             else:
                 self.switch_to.frame(f)
-            for elem in self.find_elements(by, value):
-                yield elem
+            yield from self.find_elements(by, value)
             # switch back to main content, otherwise we will get StaleElementReferenceException
             self.switch_to.default_content()
 
         # search root frame
-        for elem in search_frame():
-            yield elem
+        yield from search_frame()
         # get iframes
         frames = self.find_elements('css selector', 'iframe')
 
         # search per frame
         for f in frames:
-            for elem in search_frame(f):
-                yield elem
+            yield from search_frame(f)
 
     def quit(self):
         try:
@@ -787,13 +771,13 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
                     shutil.rmtree(self.user_data_dir, ignore_errors=False)
                 except FileNotFoundError:
                     pass
-                except (RuntimeError, OSError, PermissionError) as e:
+                except (RuntimeError, OSError) as e:
                     logger.debug(
                         "When removing the temp profile, a %s occured: %s\nretrying..."
                         % (e.__class__.__name__, e)
                     )
                 else:
-                    logger.debug("successfully removed %s" % self.user_data_dir)
+                    logger.debug(f"successfully removed {self.user_data_dir}")
                     break
                 time.sleep(0.1)
 
@@ -804,21 +788,20 @@ class Chrome(selenium.webdriver.chrome.webdriver.WebDriver):
     def __getattribute__(self, item):
         if not super().__getattribute__("debug"):
             return super().__getattribute__(item)
-        else:
-            import inspect
+        import inspect
 
-            original = super().__getattribute__(item)
-            if inspect.ismethod(original) and not inspect.isclass(original):
+        original = super().__getattribute__(item)
+        if inspect.ismethod(original) and not inspect.isclass(original):
 
-                def newfunc(*args, **kwargs):
-                    logger.debug(
-                        "calling %s with args %s and kwargs %s\n"
-                        % (original.__qualname__, args, kwargs)
-                    )
-                    return original(*args, **kwargs)
+            def newfunc(*args, **kwargs):
+                logger.debug(
+                    "calling %s with args %s and kwargs %s\n"
+                    % (original.__qualname__, args, kwargs)
+                )
+                return original(*args, **kwargs)
 
-                return newfunc
-            return original
+            return newfunc
+        return original
 
     def __enter__(self):
         return self
@@ -893,7 +876,7 @@ def find_chrome_executable():
                 ):
                     candidates.add(os.sep.join((item, subitem, "chrome.exe")))
     for candidate in candidates:
-        logger.debug('checking if %s exists and is executable' % candidate)
+        logger.debug(f'checking if {candidate} exists and is executable')
         if os.path.exists(candidate) and os.access(candidate, os.X_OK):
-            logger.debug('found! using %s' % candidate)
+            logger.debug(f'found! using {candidate}')
             return os.path.normpath(candidate)

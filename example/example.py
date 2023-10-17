@@ -12,13 +12,7 @@ import undetected_chromedriver as uc
 
 
 def main(args=None):
-    TAKE_IT_EASY = True
-
-    if args:
-        TAKE_IT_EASY = (
-            args.no_sleeps
-        )  # so the demo is 'follow-able' instead of some flashes and boom => done. set it how you like
-
+    TAKE_IT_EASY = args.no_sleeps if args else True
     if TAKE_IT_EASY:
         sleep = time.sleep
     else:
@@ -140,7 +134,7 @@ def main(args=None):
 
     for handle in driver.window_handles[1:]:
         driver.switch_to.window(handle)
-        print("look. %s is working" % driver.current_url)
+        print(f"look. {driver.current_url} is working")
         sleep(1)  # never use this. it is here only so you can follow along
 
     print(
@@ -150,7 +144,7 @@ def main(args=None):
 
     for handle in driver.window_handles[:-1]:
         driver.switch_to.window(handle)
-        print("look. %s is closing" % driver.current_url)
+        print(f"look. {driver.current_url} is closing")
         sleep(1)
         driver.close()
 
@@ -167,7 +161,7 @@ def main(args=None):
     print("lets go to UC project page")
     driver.get("https://www.github.com/ultrafunkamsterdam/undetected-chromedriver")
 
-    
+
     sleep(2)
     driver.quit()
 
